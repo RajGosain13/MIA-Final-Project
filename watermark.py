@@ -77,6 +77,6 @@ def show_watermark_locations(image_path, watermark_text, points=100):
     cv2.destroyAllWindows()
 
 # Comment 1
-watermark('RajAndSofia.JPG', "Sofia", "RajAndSofiaWatermarked.jpg")
-show_watermark('RajAndSofiaWatermarked.jpg')
-show_watermark_locations('RajAndSofiaWatermarked.jpg', 'Sofia')
+watermark('RajAndSofia.jpeg', "Sofia", "RajAndSofiaWatermarked.jpeg")
+show_watermark('RajAndSofiaWatermarked.jpeg')
+show_watermark_locations('RajAndSofiaWatermarked.jpeg', 'Sofia')
