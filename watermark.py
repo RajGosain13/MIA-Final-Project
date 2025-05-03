@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import hashlib
 
+
 def text_to_seed(text):
     return int(hashlib.sha256(text.encode()).hexdigest(), 16) % (2**32)
 
@@ -75,7 +76,7 @@ def show_watermark_locations(image_path, watermark_text, points=100):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-
+# Comment 1
 watermark('RajAndSofia.JPG', "Sofia", "RajAndSofiaWatermarked.jpg")
 show_watermark('RajAndSofiaWatermarked.jpg')
 show_watermark_locations('RajAndSofiaWatermarked.jpg', 'Sofia')
