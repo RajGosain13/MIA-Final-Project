@@ -1,82 +1,68 @@
-import cv2
 import numpy as np
-import hashlib
+import matplotlib.pyplot as plt
+from PIL import Image
 
+def generate(user, length):
+    random_seed = sum([ord(c) for c in user])
+    rng = np.random.default_rng(random_seed)
+    return rng.normal(0, 1, length)
 
-def text_to_seed(text):
-    return int(hashlib.sha256(text.encode()).hexdigest(), 16) % (2**32)
+def embed(image, watermark, alpha=0.1, block_size=32):
+    image = image.astype(np.float64)
+    length, width = image.shape
+    watermarked_image = np.copy(image)
 
-def watermark(input, watermark, output, points=100, strength=10):
-    image = cv2.imread(input, cv2.IMREAD_GRAYSCALE)
+    index = 0
+    for i in range(0, length, block_size):
+        for j in range(0, width, block_size):
+            if index >= len(watermark):
+                break
 
-    rows, cols = image.shape
-    dft = np.fft.fft2(image)
-    shifted = np.fft.fftshift(dft)
+            block = image[i:i+block_size, j:j+block_size]
+            if block.shape != (block_size, block_size):
+                continue
 
-    seed = text_to_seed(watermark)
-    rng = np.random.default_rng(seed)
+            dft = np.fft.fft2(block)
+            magnitude = np.abs(dft)
+            phase = np.angle(dft)
 
-    for _ in range(points):
-        r = rng.integers(0, rows // 2)
-        c = rng.integers(0, cols // 2)
-        value = rng.choice([-1, 1]) * strength
+            peak = np.unravel_index(np.argmax(magnitude), block.shape)
+            magnitude[peak] *= (1 + alpha * watermark[index])
 
-        shifted[r, c] += value
-        shifted[rows - r - 1, cols - c - 1] += value
+            dft_mod = magnitude * np.exp(1j * phase)
+            watermarked_block = np.real(np.fft.ifft2(dft_mod))
 
+            watermarked_image[i:i+block_size, j:j+block_size] = watermarked_block
+            index += 1
 
-    dft_ishift = np.fft.ifftshift(shifted)
-    img_back = np.fft.ifft2(dft_ishift)
-    img_back = np.abs(img_back)
-    img_back = np.clip(img_back, 0, 255).astype(np.uint8)
+    return watermarked_image
 
-    cv2.imwrite(output, img_back)
+def extract(original, watermarked, alpha=0.1, block_size=32):
+    original = original.astype(np.float64)
+    watermarked = watermarked.astype(np.float64)
+    length, width = original.shape
 
-    combined = np.hstack((image, img_back))
-    cv2.imshow("Original (left) vs Watermarked (right)", combined)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    extracted = []
 
+    for i in range(0, length, block_size):
+        for j in range(0, width, block_size):
+            block_orig = original[i:i+block_size, j:j+block_size]
+            block_water = watermarked[i:i+block_size, j:j+block_size]
 
-def show_watermark(image):
-    img = cv2.imread(image, cv2.IMREAD_GRAYSCALE)
-    dft = np.fft.fft2(img)
-    dft_shifted = np.fft.fftshift(dft)
-    magnitude_spectrum = 20 * np.log(np.abs(dft_shifted) + 1)
+            if block_orig.shape != (block_size, block_size):
+                continue
 
-    mag_norm = cv2.normalize(magnitude_spectrum, None, 0, 255, cv2.NORM_MINMAX)
-    mag_norm = mag_norm.astype(np.uint8)
+            dft_orig = np.fft.fft2(block_orig)
+            dft_water = np.fft.fft2(block_water)
 
-    cv2.imshow("DFT Magnitude Spectrum", magnitude_spectrum.astype(np.uint8))
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+            mag_orig = np.abs(dft_orig)
+            mag_water = np.abs(dft_water)
 
-def show_watermark_locations(image_path, watermark_text, points=100):
-    img = cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)
-    dft = np.fft.fft2(img)
-    shifted = np.fft.fftshift(dft)
-    magnitude = 20 * np.log(np.abs(shifted) + 1)
-    mag_norm = cv2.normalize(magnitude, None, 0, 255, cv2.NORM_MINMAX).astype(np.uint8)
-    mag_color = cv2.cvtColor(mag_norm, cv2.COLOR_GRAY2BGR)
+            peak = np.unravel_index(np.argmax(mag_orig), block_orig.shape)
+            v = mag_orig[peak]
+            v_star = mag_water[peak]
 
-    # Recreate watermark coordinates
-    rows, cols = img.shape
-    seed = text_to_seed(watermark_text)
-    rng = np.random.default_rng(seed)
-
-    for _ in range(points):
-        r = rng.integers(0, rows // 2)
-        c = rng.integers(0, cols // 2)
-
-        # Draw red dots at watermark locations
-        mag_color = cv2.circle(mag_color, (c, r), radius=3, color=(0, 0, 255), thickness=-1)
-        mag_color = cv2.circle(mag_color, (cols - c - 1, rows - r - 1), radius=3, color=(0, 0, 255), thickness=-1)
-
-    cv2.imshow("Watermark Locations in DFT", mag_color)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
-
-# Comment 1
-watermark('RajAndSofia.jpeg', "Sofia", "RajAndSofiaWatermarked.jpeg")
-show_watermark('RajAndSofiaWatermarked.jpeg')
-show_watermark_locations('RajAndSofiaWatermarked.jpeg', 'Sofia')
+            x_i = ((v_star / v) - 1) / alpha
+            extracted.append(x_i)
+    
+    return np.array(extracted)
