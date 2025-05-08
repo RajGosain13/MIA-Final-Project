@@ -7,7 +7,7 @@ import attacks as a
 image = np.array(Image.open('RajAndSofiaTest.jpeg').convert('L'))
 length, width = image.shape
 block_size = 32
-alpha = 0.05
+alpha = 0.0005
 
 user_id = 'Raj Gosain'
 num_blocks = (length // block_size) * (width // block_size)
@@ -17,12 +17,12 @@ watermarked_normal = w.embed(image, watermark_normal, alpha, block_size)
 Image.fromarray(np.clip(watermarked_normal, 0, 255).astype(np.uint8)).save('RajAndSofiaWatermarked.jpeg')
 
 attacks_normal = {
-    'Gaussian': a.gaussian_noise(watermarked_normal),
-    'Salt and Pepper': a.salt_and_pepper(watermarked_normal),
-    'Compression': a.compression(watermarked_normal),
-    'Blurred': a.blur(watermarked_normal),
-    'Histogram Equalization': a.histogram_equalization(watermarked_normal),
-    'Rotation': a.rotate(watermarked_normal)
+    'Gaussian': a.gaussian_noise(w.embed(image, watermark_normal, alpha, block_size)),
+    'Salt and Pepper': a.salt_and_pepper(w.embed(image, watermark_normal, alpha, block_size)),
+    'Compression': a.compression(w.embed(image, watermark_normal, alpha, block_size)),
+    'Blurred': a.blur(w.embed(image, watermark_normal, alpha, block_size)),
+    'Histogram Equalization': a.histogram_equalization(w.embed(image, watermark_normal, alpha, block_size)),
+    'Rotation': a.rotate(w.embed(image, watermark_normal, alpha, block_size))
 }
 
 for name, attacked_image in attacks_normal.items():
@@ -73,7 +73,7 @@ attacks_advanced = {
 }
 
 for name, attacked_image in attacks_advanced.items():
-    watermark_extracted = w.extract_advanced(image, attacked_image, coords, alpha=0.2, reps=10)
+    watermark_extracted = w.extract_advanced(image, attacked_image, coords, alpha=0.2)
     similarity = w.similarity(watermark_advanced, watermark_extracted)
     snr = w.snr(image, attacked_image)
 
@@ -83,3 +83,114 @@ for name, attacked_image in attacks_advanced.items():
     plt.axis('off')
     plt.show()
 
+def compute_dft_magnitude(image):
+    dft = np.fft.fft2(image)
+    dft_shifted = np.fft.fftshift(dft)
+    magnitude_spectrum = np.log1p(np.abs(dft_shifted))
+    return magnitude_spectrum
+
+original = np.array(Image.open('RajAndSofiaTest.jpeg').convert('L'), dtype=np.float64)
+dft_o = compute_dft_magnitude(original)
+
+dft_n = compute_dft_magnitude(watermarked_normal)
+dft_r = compute_dft_magnitude(watermarked_robust)
+dft_a = compute_dft_magnitude(watermarked_advanced)
+
+diff_n = np.abs(dft_o - dft_n)
+diff_r = np.abs(dft_o - dft_r)
+diff_a = np.abs(dft_o - dft_a)
+
+fig, axes = plt.subplots(3, 3, figsize=(10,10))
+plt.subplot(3, 3, 1)
+plt.imshow(dft_o, cmap='gray')
+plt.title('Original DFT')
+plt.axis('off')
+
+plt.subplot(3, 3, 2)
+plt.imshow(dft_n, cmap='gray')
+plt.title('High Peak DFT')
+plt.axis('off')
+
+plt.subplot(3, 3, 3)
+plt.imshow(dft_r, cmap='gray')
+plt.title('Mid Frequency DFT')
+plt.axis('off')
+
+plt.subplot(3, 3, 4)
+plt.imshow(dft_a, cmap='gray')
+plt.title('Refined Mid Frequency DFT')
+plt.axis('off')
+
+plt.subplot(3, 3, 5)
+plt.imshow(diff_n, cmap='gray')
+plt.title('Difference High Peak')
+plt.axis('off')
+
+plt.subplot(3, 3, 6)
+plt.imshow(diff_r, cmap='gray')
+plt.title('Difference Mid Frequency')
+plt.axis('off')
+
+plt.subplot(3, 3, 7)
+plt.imshow(diff_a, cmap='gray')
+plt.title('Difference Refined Mid Frequency')
+plt.axis('off')
+
+plt.tight_layout()
+plt.show()
+
+def plot_fft_histogram(image, title="FFT Magnitude Histogram", bins=100):
+    """
+    Compute and plot a histogram of the magnitude spectrum of an image's FFT.
+
+    Parameters:
+    - image: 2D numpy array (grayscale image)
+    - title: Title of the plot
+    - bins: Number of bins in the histogram
+    """
+    dft = np.fft.fft2(image)
+    dft_shifted = np.fft.fftshift(dft)
+    magnitude = np.abs(dft_shifted).flatten()
+
+    # Remove DC component (usually very large and dominates histogram)
+    magnitude = magnitude[magnitude > 0]  # Exclude zeros
+    magnitude = np.log1p(magnitude)      # Log scale for better visualization
+
+    plt.figure(figsize=(8, 4))
+    plt.hist(magnitude, bins=bins, color='steelblue', edgecolor='black')
+    plt.title(title)
+    plt.xlabel('Log Magnitude')
+    plt.ylabel('Frequency')
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+
+plot_fft_histogram(image, title="Original Image FFT Histogram")
+plot_fft_histogram(watermarked_normal, title="High Peak Watermarked FFT Histogram")
+plot_fft_histogram(watermarked_robust, title="Mid Frequency Watermarked FFT Histogram")
+plot_fft_histogram(watermarked_advanced, title="Refined Mid Frequency Watermarked FFT Histogram")
+
+
+similarity_normal = w.similarity(image, watermark_normal)
+snr_normal = w.snr(image, watermark_normal)
+print(similarity_normal, snr_normal)
+plt.imshow(watermarked_normal, cmap='gray')
+plt.title(f"High Peak Watermark\nSimilarity: {similarity_normal:.4f}, SNR: {snr_normal:.2f} dB")
+plt.axis('off')
+plt.show()
+
+
+similarity_robust = w.similarity(image, watermark_robust)
+snr_robust = w.snr(image, watermark_robust)
+plt.imshow(watermarked_robust, cmap='gray')
+plt.title(f"Mid Frequency Watermark\nSimilarity: {similarity_robust:.4f}, SNR: {snr_robust:.2f} dB")
+plt.axis('off')
+plt.show()
+
+similarity_adv = w.similarity(image, watermark_advanced)
+snr_adv = w.snr(image, watermark_advanced)
+plt.imshow(watermark_advanced, cmap='gray')
+plt.title(f"Refined Mid Frequency Watermark\nSimilarity: {similarity_adv:.4f}, SNR: {snr_adv:.2f} dB")
+plt.axis('off')
+plt.show()

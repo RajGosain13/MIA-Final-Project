@@ -8,7 +8,7 @@ def gaussian_noise(image, mean=0, std=10):
     noisy_image = image + noise
     return np.clip(noisy_image, 0, 255)
 
-def salt_and_pepper(image, amt=0.01):
+def salt_and_pepper(image, amt=0.1):
     noisy = np.copy(image)
     pixels = int(amt * image.size)
     coords = [(random.randint(0, image.shape[0]-1), random.randint(0, image.shape[1]-1)) for n in range(pixels)]
@@ -17,12 +17,12 @@ def salt_and_pepper(image, amt=0.01):
         noisy[x, y] = 0 if random.random() < 0.5 else 255
     return noisy
 
-def compression(image, quality=30):
+def compression(image, quality=25):
     pil_image = Image.fromarray(image.astype(np.uint8))
     pil_image.save('temp.png', 'JPEG', quality=quality)
     return np.array(Image.open('temp.png').convert('L'))
 
-def blur(image, kernel_size=3):
+def blur(image, kernel_size=7):
     return cv2.GaussianBlur(image.astype(np.uint8), (kernel_size, kernel_size), 0)
 
 def histogram_equalization(image):
