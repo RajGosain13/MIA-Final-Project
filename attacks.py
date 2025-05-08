@@ -15,7 +15,7 @@ def crop(image, ratio=0.1):
     return image[crop_length:length-crop_length, crop_width:width-crop_width]
 
 def compression(image, quality=30):
-    pil_image = Image.fromarray(image.astype(np.unit8))
+    pil_image = Image.fromarray(image.astype(np.uint8))
     pil_image.save('temp.png', 'JPEG', quality=quality)
     return np.array(Image.open('temp.png').convert('L'))
 
@@ -28,7 +28,7 @@ def resize(image, scale=0.5):
     return cv2.resize(resized, (width, length), interpolation=cv2.INTER_LINEAR)
 
 def change_contrast(image, factor=0.5):
-    pil_img = Image.fromarray(image.astype(np.unint8))
+    pil_img = Image.fromarray(image.astype(np.uint8))
     enhancer = ImageEnhance.Contrast(pil_img)
     return np.array(enhancer.enhance(factor=factor).convert('L'))
 
