@@ -17,11 +17,12 @@ def embed(image, watermark, alpha=0.1, block_size=32):
     image = image.astype(np.float64)
     output = image.copy()
     idx = 0
+    used_coords = []
 
     for i in range(0, image.shape[0], block_size):
         for j in range(0, image.shape[1], block_size):
             if idx >= len(watermark):
-                return output
+                return output, used_coords
 
             block = image[i:i+block_size, j:j+block_size]
             if block.shape != (block_size, block_size):
@@ -34,9 +35,10 @@ def embed(image, watermark, alpha=0.1, block_size=32):
 
             mod_block = np.real(np.fft.ifft2(mag * np.exp(1j * phase)))
             output[i:i+block_size, j:j+block_size] = mod_block
+            used_coords.append((i, j))
             idx += 1
 
-    return output
+    return output, used_coords
 
 def extract(original, watermarked, alpha=0.1, block_size=32):
     original = original.astype(np.float64)
@@ -90,8 +92,8 @@ def embed_robust(image, user_id, alpha=0.1, block_size=32, eps=1e-8):
         mag, phase = np.abs(dft), np.angle(dft)
         mag[u, v] *= 1 + alpha * watermark[idx]
         output[i:i+block_size, j:j+block_size] = np.real(np.fft.ifft2(mag * np.exp(1j * phase)))
-
-    return output, watermark, used
+    block_coords = list({(i, j) for i, j, _, _ in used})
+    return output, watermark, used, block_coords
 
 def extract_robust(original, watermarked, used, alpha=0.1, block_size=32, eps=1e-8):
     original = original.astype(np.float64)
@@ -147,8 +149,8 @@ def embed_advanced(image, user_id, alpha=0.1, block_size=32, reps=3, eps=1e-8):
 
             output[i:i+block_size, j:j+block_size] = np.real(np.fft.ifft2(mod * np.exp(1j * phase)))
             used.append((i, j, u, v, b))
-
-    return output, watermark, used, reps
+    block_coords = list({(i, j) for i, j, _, _, _ in used})
+    return output, watermark, used, reps, block_coords
 
 def extract_advanced(original, watermarked, used, alpha=0.1, block_size=32):
     extracted = {}
@@ -167,4 +169,20 @@ def extract_advanced(original, watermarked, used, alpha=0.1, block_size=32):
 
     return np.array([np.sign(np.sum(np.sign(extracted[b]))) for b in sorted(extracted)])
 
+def similarity_at_coords(original, modified, coords, block_size=32):
+    dots = 0
+    total = 0
+
+    for i, j in coords:
+        orig_block = original[i:i+block_size, j:j+block_size]
+        mod_block = modified[i:i+block_size, j:j+block_size]
+        
+        # Optional: flatten blocks for dot product
+        o = np.sign(orig_block.flatten())
+        m = np.sign(mod_block.flatten())
+
+        dots += np.dot(o, m)
+        total += len(o)
+
+    return dots / total if total > 0 else 0.0
 

@@ -7,22 +7,22 @@ import attacks as a
 image = np.array(Image.open('RajAndSofiaTest.jpeg').convert('L'))
 length, width = image.shape
 block_size = 32
-alpha = 0.0005
+alpha = 0.25
 
 user_id = 'Raj Gosain'
 num_blocks = (length // block_size) * (width // block_size)
 
 watermark_normal = w.generate(user_id, num_blocks)
-watermarked_normal = w.embed(image, watermark_normal, alpha, block_size)
+watermarked_normal, coords_normal = w.embed(image, watermark_normal, alpha, block_size)
 Image.fromarray(np.clip(watermarked_normal, 0, 255).astype(np.uint8)).save('RajAndSofiaWatermarked.jpeg')
 
 attacks_normal = {
-    'Gaussian': a.gaussian_noise(w.embed(image, watermark_normal, alpha, block_size)),
-    'Salt and Pepper': a.salt_and_pepper(w.embed(image, watermark_normal, alpha, block_size)),
-    'Compression': a.compression(w.embed(image, watermark_normal, alpha, block_size)),
-    'Blurred': a.blur(w.embed(image, watermark_normal, alpha, block_size)),
-    'Histogram Equalization': a.histogram_equalization(w.embed(image, watermark_normal, alpha, block_size)),
-    'Rotation': a.rotate(w.embed(image, watermark_normal, alpha, block_size))
+    'Gaussian': a.gaussian_noise(watermarked_normal),
+    'Salt and Pepper': a.salt_and_pepper(watermarked_normal),
+    'Compression': a.compression(watermarked_normal),
+    'Blurred': a.blur(watermarked_normal),
+    'Histogram Equalization': a.histogram_equalization(watermarked_normal),
+    'Rotation': a.rotate(watermarked_normal)
 }
 
 for name, attacked_image in attacks_normal.items():
@@ -31,12 +31,14 @@ for name, attacked_image in attacks_normal.items():
     snr = w.snr(image, attacked_image)
 
     print(f"[{name}] Similarity: {similarity:.4f}, SNR: {snr:.2f} dB") 
+    '''
     plt.imshow(attacked_image, cmap='gray')
     plt.title(f"{name}\nSimilarity: {similarity:.4f}, SNR: {snr:.2f} dB")
     plt.axis('off')
     plt.show()
+    '''
 
-watermarked_robust, watermark_robust, user_coords = w.embed_robust(image, user_id, alpha, block_size)
+watermarked_robust, watermark_robust, coords_robust, used_robust = w.embed_robust(image, user_id, alpha, block_size)
 Image.fromarray(np.clip(watermarked_robust, 0, 255).astype(np.uint8)).save('RajAndSofiaWatermarked.jpeg')
 
 attacks_robust = {
@@ -49,18 +51,20 @@ attacks_robust = {
 }
 
 for name, attacked_image in attacks_robust.items():
-    watermark_extracted = w.extract_robust(image, attacked_image, user_coords)
+    watermark_extracted = w.extract_robust(image, attacked_image, coords_robust)
     similarity = w.similarity(watermark_robust, watermark_extracted)
     snr = w.snr(image, attacked_image)
 
     print(f"[{name}] Similarity: {similarity:.4f}, SNR: {snr:.2f} dB") 
+    '''
     plt.imshow(attacked_image, cmap='gray')
     plt.title(f"{name}\nSimilarity: {similarity:.4f}, SNR: {snr:.2f} dB")
     plt.axis('off')
     plt.show()
+    '''
 
 
-watermarked_advanced, watermark_advanced, coords, reps = w.embed_advanced(image, user_id=user_id, alpha=alpha, reps=10)
+watermarked_advanced, watermark_advanced, coords_adv, reps, used_adv = w.embed_advanced(image, user_id=user_id, alpha=alpha, reps=10)
 Image.fromarray(np.clip(watermarked_advanced, 0, 255).astype(np.uint8)).save('RajAndSofiaWatermarked.jpeg')
 
 attacks_advanced = {
@@ -73,15 +77,17 @@ attacks_advanced = {
 }
 
 for name, attacked_image in attacks_advanced.items():
-    watermark_extracted = w.extract_advanced(image, attacked_image, coords, alpha=0.2)
+    watermark_extracted = w.extract_advanced(image, attacked_image, coords_adv, alpha=0.2)
     similarity = w.similarity(watermark_advanced, watermark_extracted)
     snr = w.snr(image, attacked_image)
 
-    print(f"[{name}] Similarity: {similarity:.4f}, SNR: {snr:.2f} dB") 
+    print(f"[{name}] Similarity: {similarity:.4f}, SNR: {snr:.2f} dB")
+    '''
     plt.imshow(attacked_image, cmap='gray')
     plt.title(f"{name}\nSimilarity: {similarity:.4f}, SNR: {snr:.2f} dB")
     plt.axis('off')
     plt.show()
+    '''
 
 def compute_dft_magnitude(image):
     dft = np.fft.fft2(image)
@@ -140,21 +146,12 @@ plt.tight_layout()
 plt.show()
 
 def plot_fft_histogram(image, title="FFT Magnitude Histogram", bins=100):
-    """
-    Compute and plot a histogram of the magnitude spectrum of an image's FFT.
-
-    Parameters:
-    - image: 2D numpy array (grayscale image)
-    - title: Title of the plot
-    - bins: Number of bins in the histogram
-    """
     dft = np.fft.fft2(image)
     dft_shifted = np.fft.fftshift(dft)
     magnitude = np.abs(dft_shifted).flatten()
 
-    # Remove DC component (usually very large and dominates histogram)
-    magnitude = magnitude[magnitude > 0]  # Exclude zeros
-    magnitude = np.log1p(magnitude)      # Log scale for better visualization
+    magnitude = magnitude[magnitude > 0] 
+    magnitude = np.log1p(magnitude)
 
     plt.figure(figsize=(8, 4))
     plt.hist(magnitude, bins=bins, color='steelblue', edgecolor='black')
@@ -165,32 +162,29 @@ def plot_fft_histogram(image, title="FFT Magnitude Histogram", bins=100):
     plt.tight_layout()
     plt.show()
 
-
+'''
 plot_fft_histogram(image, title="Original Image FFT Histogram")
 plot_fft_histogram(watermarked_normal, title="High Peak Watermarked FFT Histogram")
 plot_fft_histogram(watermarked_robust, title="Mid Frequency Watermarked FFT Histogram")
 plot_fft_histogram(watermarked_advanced, title="Refined Mid Frequency Watermarked FFT Histogram")
+'''
 
-
-similarity_normal = w.similarity(image, watermark_normal)
-snr_normal = w.snr(image, watermark_normal)
-print(similarity_normal, snr_normal)
+similarity_normal = w.similarity_at_coords(image, watermarked_normal, coords_normal, block_size)
+print(similarity_normal)
 plt.imshow(watermarked_normal, cmap='gray')
-plt.title(f"High Peak Watermark\nSimilarity: {similarity_normal:.4f}, SNR: {snr_normal:.2f} dB")
+plt.title(f"High Peak Watermark\nSimilarity: {similarity_normal:.4f} dB")
 plt.axis('off')
 plt.show()
 
 
-similarity_robust = w.similarity(image, watermark_robust)
-snr_robust = w.snr(image, watermark_robust)
+similarity_robust = w.similarity_at_coords(image, watermarked_robust, used_robust)
 plt.imshow(watermarked_robust, cmap='gray')
-plt.title(f"Mid Frequency Watermark\nSimilarity: {similarity_robust:.4f}, SNR: {snr_robust:.2f} dB")
+plt.title(f"Mid Frequency Watermark\nSimilarity: {similarity_robust:.4f} dB")
 plt.axis('off')
 plt.show()
 
-similarity_adv = w.similarity(image, watermark_advanced)
-snr_adv = w.snr(image, watermark_advanced)
+similarity_adv = w.similarity_at_coords(image, watermarked_advanced, used_adv)
 plt.imshow(watermark_advanced, cmap='gray')
-plt.title(f"Refined Mid Frequency Watermark\nSimilarity: {similarity_adv:.4f}, SNR: {snr_adv:.2f} dB")
+plt.title(f"Refined Mid Frequency Watermark\nSimilarity: {similarity_adv:.4f} dB")
 plt.axis('off')
 plt.show()
