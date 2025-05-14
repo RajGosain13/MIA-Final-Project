@@ -3,8 +3,10 @@ import matplotlib.pyplot as plt
 from PIL import Image
 import watermark as w
 import attacks as a
+from skimage.transform import resize
 
 image = np.array(Image.open('RajAndSofiaTest.jpeg').convert('L'))
+image = resize(image, (320, 320), anti_aliasing=True)
 length, width = image.shape
 block_size = 32
 alpha = 0.25
@@ -31,12 +33,12 @@ for name, attacked_image in attacks_normal.items():
     snr = w.snr(image, attacked_image)
 
     print(f"[{name}] Similarity: {similarity:.4f}, SNR: {snr:.2f} dB") 
-    '''
+    
     plt.imshow(attacked_image, cmap='gray')
     plt.title(f"{name}\nSimilarity: {similarity:.4f}, SNR: {snr:.2f} dB")
     plt.axis('off')
     plt.show()
-    '''
+    
 
 watermarked_robust, watermark_robust, coords_robust, used_robust = w.embed_robust(image, user_id, alpha, block_size)
 Image.fromarray(np.clip(watermarked_robust, 0, 255).astype(np.uint8)).save('RajAndSofiaWatermarked.jpeg')
@@ -56,12 +58,12 @@ for name, attacked_image in attacks_robust.items():
     snr = w.snr(image, attacked_image)
 
     print(f"[{name}] Similarity: {similarity:.4f}, SNR: {snr:.2f} dB") 
-    '''
+    
     plt.imshow(attacked_image, cmap='gray')
     plt.title(f"{name}\nSimilarity: {similarity:.4f}, SNR: {snr:.2f} dB")
     plt.axis('off')
     plt.show()
-    '''
+    
 
 
 watermarked_advanced, watermark_advanced, coords_adv, reps, used_adv = w.embed_advanced(image, user_id=user_id, alpha=alpha, reps=10)
@@ -82,12 +84,11 @@ for name, attacked_image in attacks_advanced.items():
     snr = w.snr(image, attacked_image)
 
     print(f"[{name}] Similarity: {similarity:.4f}, SNR: {snr:.2f} dB")
-    '''
     plt.imshow(attacked_image, cmap='gray')
     plt.title(f"{name}\nSimilarity: {similarity:.4f}, SNR: {snr:.2f} dB")
     plt.axis('off')
     plt.show()
-    '''
+     
 
 def compute_dft_magnitude(image):
     dft = np.fft.fft2(image)
@@ -96,6 +97,7 @@ def compute_dft_magnitude(image):
     return magnitude_spectrum
 
 original = np.array(Image.open('RajAndSofiaTest.jpeg').convert('L'), dtype=np.float64)
+original = resize(image, (320, 320), anti_aliasing=True)
 dft_o = compute_dft_magnitude(original)
 
 dft_n = compute_dft_magnitude(watermarked_normal)
@@ -184,7 +186,7 @@ plt.axis('off')
 plt.show()
 
 similarity_adv = w.similarity_at_coords(image, watermarked_advanced, used_adv)
-plt.imshow(watermark_advanced, cmap='gray')
-plt.title(f"Refined Mid Frequency Watermark\nSimilarity: {similarity_adv:.4f} dB")
+plt.imshow(watermarked_advanced, cmap='gray')
+plt.title(f"Refined Mid Frequency Watermark\nSimilarity: {similarity_adv:.7f} dB")
 plt.axis('off')
 plt.show()

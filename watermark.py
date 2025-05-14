@@ -63,7 +63,9 @@ def extract(original, watermarked, alpha=0.1, block_size=32):
     return np.array(result)
 
 def similarity(x, x_star):
-    return np.dot(np.sign(x), np.sign(x_star)) / len(x)
+    numerator = np.abs(np.dot(x, x_star))
+    denominator = np.sqrt(np.dot(x_star, x_star))
+    return numerator/denominator
 
 def snr(original, watermarked):
     noise = original - watermarked
@@ -145,7 +147,7 @@ def embed_advanced(image, user_id, alpha=0.1, block_size=32, reps=3, eps=1e-8):
             mag_log = np.log1p(mag)
             mag_log[u, v] *= 1 + alpha * watermark[b]
             mod = np.expm1(mag_log)
-            mod *= np.linalg.norm(np.abs(dft)) / (np.linalg.norm(mod) + 1e-10)
+            mod *= np.linalg.norm(np.abs(dft)) #/ (np.linalg.norm(mod) + 1e-10)
 
             output[i:i+block_size, j:j+block_size] = np.real(np.fft.ifft2(mod * np.exp(1j * phase)))
             used.append((i, j, u, v, b))
@@ -170,6 +172,14 @@ def extract_advanced(original, watermarked, used, alpha=0.1, block_size=32):
     return np.array([np.sign(np.sum(np.sign(extracted[b]))) for b in sorted(extracted)])
 
 def similarity_at_coords(original, modified, coords, block_size=32):
+
+    numerator = np.sum(np.multiply(original, modified))
+    denominator = np.sqrt(np.sum(np.multiply(modified,modified)))
+    return numerator/denominator
+
+
+
+    '''
     dots = 0
     total = 0
 
@@ -185,4 +195,6 @@ def similarity_at_coords(original, modified, coords, block_size=32):
         total += len(o)
 
     return dots / total if total > 0 else 0.0
+
+    '''
 
