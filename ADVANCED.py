@@ -13,7 +13,7 @@ length, width = image.shape
 
 # Watermark parameters
 block_size = 32
-alpha = 2
+alpha = 0.25
 user_id = 'Raj Gosain'
 num_blocks = (length // block_size) * (width // block_size)
 
@@ -26,7 +26,7 @@ fig, ax = plt.subplots(1,2)
 ax[0].imshow(image,cmap='gray')
 ax[0].set_title('Original')
 ax[1].imshow(WMimage,cmap='gray')
-ax[1].set_title(f'Watermarked\nSNR:{w.snr(image,WMimage)}')
+ax[1].set_title(f'{chr(945)} = {alpha} Watermarked\nSNR:{w.snr(image,WMimage)}')
 plt.show()
 
 # Apply attacks
